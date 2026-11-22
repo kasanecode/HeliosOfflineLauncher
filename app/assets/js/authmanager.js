@@ -16,6 +16,7 @@ const { MojangRestAPI, MojangErrorCode } = require('helios-core/mojang')
 const { MicrosoftAuth, MicrosoftErrorCode } = require('helios-core/microsoft')
 const { AZURE_CLIENT_ID }    = require('./ipcconstants')
 const Lang = require('./langloader')
+const crypto = require('crypto')
 
 const log = LoggerUtil.getLogger('AuthManager')
 
@@ -168,6 +169,29 @@ exports.addMojangAccount = async function(username, password) {
 }
 
 const AUTH_MODE = { FULL: 0, MS_REFRESH: 1, MC_REFRESH: 2 }
+
+function generateOfflineUUID(username) {
+    const md5Bytes = crypto.createHash('md5').update(`OfflinePlayer:${username}`).digest()
+    md5Bytes[6] = (md5Bytes[6] & 0x0f) | 0x30
+    md5Bytes[8] = (md5Bytes[8] & 0x3f) | 0x80
+    return md5Bytes.toString('hex')
+}
+
+/**
+ * Add an offline account directly to ConfigManager without contacting Mojang/Microsoft.
+ * 
+ * @param {string} username The desired offline player name.
+ * @returns {Promise.<Object>} Promise resolving to the created account object.
+ */
+exports.addOfflineAccount = async function(username) {
+    const uuid = generateOfflineUUID(username)
+    const ret = ConfigManager.addMojangAuthAccount(uuid, 'offline_access_token', username, username)
+    if (ConfigManager.getClientToken() == null) {
+        ConfigManager.setClientToken(crypto.randomBytes(16).toString('hex'))
+    }
+    ConfigManager.save()
+    return ret
+}
 
 /**
  * Perform the full MS Auth flow in a given mode.
