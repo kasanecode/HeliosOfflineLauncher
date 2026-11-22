@@ -440,6 +440,10 @@ async function validateSelectedMicrosoftAccount(){
 exports.validateSelected = async function(){
     const current = ConfigManager.getSelectedAccount()
 
+    if (current && current.accessToken === 'offline_access_token') {
+        return true
+    }
+
     if(current.type === 'microsoft') {
         return await validateSelectedMicrosoftAccount()
     } else {
